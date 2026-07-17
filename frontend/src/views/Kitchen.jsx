@@ -48,10 +48,8 @@ export default function Kitchen() {
       orders: [...tab.orders].sort(
         (a, b) => a.created_at.localeCompare(b.created_at)),
     }))
-    .sort((a, b) =>
-      (a.table.area_name || '').localeCompare(b.table.area_name || '')
-      || a.table.name.localeCompare(b.table.name, undefined,
-                                    { numeric: true }))
+    .sort((a, b) =>  // oldest tab first: the barman prepares by priority
+      a.orders[0].created_at.localeCompare(b.orders[0].created_at))
 
   const age = iso => Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000))
   const clock = iso => new Date(iso)
