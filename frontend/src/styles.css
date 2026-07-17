@@ -1,0 +1,455 @@
+/* OrderPad - "thermal receipt" design language.
+   Paper background, ink text, one bold accent, receipt-styled cart. */
+:root {
+  --paper: #f6f4ef;
+  --ink: #23201a;
+  --muted: #8a8375;
+  --line: #ddd7c9;
+  --accent: #0e7a5f;     /* barista green */
+  --amber: #c77c02;      /* status: new */
+  --card: #ffffff;
+  --radius: 12px;
+  --mono: 'Courier New', ui-monospace, monospace;
+}
+* { box-sizing: border-box; margin: 0; }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+button { font: inherit; cursor: pointer; border: none; }
+input, select { font: inherit; }
+
+/* ---------- shell ---------- */
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+.topbar {
+  display: flex; align-items: center; gap: 18px;
+  padding: 10px 16px; background: var(--ink); color: var(--paper);
+}
+.brand { font-size: 18px; letter-spacing: .02em; }
+.brand b { color: #7fd6bd; }
+.brand.big { font-size: 34px; color: var(--ink); }
+.brand.big b { color: var(--accent); }
+.topbar nav { display: flex; gap: 4px; flex: 1; }
+.topbar nav a {
+  color: var(--paper); text-decoration: none; padding: 8px 14px;
+  border-radius: 8px; opacity: .75;
+}
+.topbar nav a.on, .topbar nav a:hover { background: #ffffff22; opacity: 1; }
+.ghost {
+  background: transparent; color: inherit;
+  border: 1px solid currentColor; border-radius: 8px; padding: 6px 12px; opacity: .8;
+}
+
+/* ---------- login ---------- */
+.login {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px; padding: 24px;
+}
+.hint { color: var(--muted); }
+.hint.small { font-size: 13px; }
+.error { color: #b3261e; font-weight: 600; }
+.dots { display: flex; gap: 10px; margin: 6px 0; }
+.dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--muted);
+}
+.dot.full { background: var(--accent); border-color: var(--accent); }
+.keypad {
+  display: grid; grid-template-columns: repeat(3, 76px); gap: 10px;
+}
+.key {
+  height: 64px; border-radius: var(--radius); background: var(--card);
+  border: 1px solid var(--line); font-size: 22px;
+}
+.key:active { transform: scale(.97); }
+.key.go { background: var(--accent); color: white; }
+.key.clear { color: var(--muted); }
+
+/* ---------- shared grids/tiles ---------- */
+main { padding: 16px; flex: 1; }
+.grid { display: grid; gap: 12px; }
+.grid.tables { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.grid.products { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.tile {
+  min-height: 92px; border-radius: var(--radius);
+  background: var(--card); border: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; padding: 10px; text-align: center;
+}
+.tile:active { transform: scale(.98); }
+.tile-name { font-weight: 600; }
+.tile.busy { border-color: var(--amber); box-shadow: inset 0 0 0 2px var(--amber); }
+.badge {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--amber); font-weight: 700;
+}
+.price { color: var(--accent); font-weight: 700; }
+
+/* ---------- order screen ---------- */
+.order-screen {
+  display: grid; grid-template-columns: 1fr 320px; gap: 16px;
+}
+.cat-tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.tab {
+  padding: 10px 16px; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--line);
+}
+.tab.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+.receipt {
+  background: var(--card); border: 1px dashed var(--muted);
+  border-radius: 4px; padding: 14px; font-family: var(--mono);
+  align-self: start; position: sticky; top: 16px;
+}
+.receipt-head {
+  text-align: center; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; border-bottom: 1px dashed var(--line);
+  padding-bottom: 8px; margin-bottom: 8px;
+}
+.line { padding: 6px 0; border-bottom: 1px dotted var(--line); }
+.line-main { display: flex; align-items: center; gap: 8px; }
+.line-name { flex: 1; }
+.line-qty { display: flex; align-items: center; gap: 6px; }
+.line-qty button {
+  width: 26px; height: 26px; border-radius: 6px;
+  background: var(--paper); border: 1px solid var(--line);
+}
+.line-sum { min-width: 64px; text-align: right; }
+.note {
+  width: 100%; margin-top: 4px; border: none; border-bottom: 1px dotted var(--line);
+  background: transparent; font-family: var(--mono); font-size: 13px; padding: 2px 0;
+}
+.note:focus { outline: none; border-bottom-color: var(--accent); }
+.receipt-total {
+  display: flex; justify-content: space-between; padding: 10px 0;
+  font-size: 18px; letter-spacing: .06em;
+}
+.cta {
+  width: 100%; padding: 14px; border-radius: var(--radius);
+  background: var(--accent); color: white; font-weight: 700; font-size: 16px;
+}
+.cta:disabled { opacity: .45; cursor: default; }
+.cta.small { width: auto; padding: 8px 14px; font-size: 14px; }
+
+/* ---------- kitchen ---------- */
+.kitchen-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.pill {
+  font-size: 12px; font-weight: 700; letter-spacing: .1em;
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--line); color: var(--muted);
+}
+.pill.live { background: var(--accent); color: white; }
+.grid.cards { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); align-items: start; }
+.card {
+  background: var(--card); border-radius: var(--radius);
+  border: 1px solid var(--line); border-top: 5px solid var(--amber);
+  padding: 12px; display: flex; flex-direction: column; gap: 10px;
+}
+.card.ready { border-top-color: var(--accent); }
+.card header { display: flex; justify-content: space-between; color: var(--muted); }
+.card header b { color: var(--ink); font-size: 17px; }
+.card ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.card em { color: var(--amber); font-style: normal; }
+.card footer { display: flex; justify-content: space-between; align-items: center; }
+
+/* ---------- admin ---------- */
+.stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.stat {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px 20px; min-width: 150px;
+}
+.stat b { font-size: 26px; display: block; }
+.stat span { color: var(--muted); font-size: 13px; }
+.stat.top ol { margin: 6px 0 0 18px; font-size: 14px; }
+.panel {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 16px;
+}
+.panel h3 { margin-bottom: 12px; }
+.new-product { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.new-product input, .new-product select {
+  padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
+}
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+tr.off td { opacity: .45; }
+.price-edit { width: 84px; padding: 6px; border: 1px solid var(--line); border-radius: 6px; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 760px) {
+  .order-screen { grid-template-columns: 1fr; }
+  .receipt { position: static; }
+  .topbar nav a { padding: 8px 10px; }
+}
+
+/* ---------- option sheet (waiter) ---------- */
+.backdrop {
+  position: fixed; inset: 0; background: #00000055;
+  display: flex; align-items: flex-end; justify-content: center; z-index: 20;
+}
+.sheet {
+  background: var(--card); width: min(560px, 100%);
+  border-radius: 16px 16px 0 0; padding: 16px;
+  max-height: 80vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.sheet-head { display: flex; justify-content: space-between; align-items: center; font-size: 18px; }
+.group-block { display: flex; flex-direction: column; gap: 8px; }
+.group-title { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.req {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--amber); font-weight: 700;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip {
+  padding: 10px 14px; border-radius: 999px;
+  background: var(--paper); border: 1px solid var(--line); font-size: 15px;
+}
+.chip.on {
+  background: var(--accent); border-color: var(--accent);
+  color: white; font-weight: 600;
+}
+.chip em { font-style: normal; opacity: .8; font-size: 13px; }
+.chip.static { display: inline-flex; align-items: center; gap: 6px; cursor: default; }
+.chip .x {
+  background: none; color: inherit; font-size: 16px; line-height: 1;
+  opacity: .6; padding: 0 2px;
+}
+.chip .x:hover { opacity: 1; color: #b3261e; }
+
+/* receipt line extras */
+.line-opts { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.note-toggle {
+  background: none; color: var(--muted); font-family: var(--mono);
+  font-size: 12px; padding: 2px 0; text-decoration: underline dotted;
+}
+.opts { color: var(--muted); font-size: 13px; }
+
+/* admin option groups */
+.group-row { border-top: 1px solid var(--line); padding: 12px 0; }
+.group-row-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.ghost.danger { color: #b3261e; border-color: #b3261e55; }
+.mini {
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 999px;
+  width: 130px; font-size: 14px;
+}
+.mini.num { width: 74px; }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.opt-picker summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+.opt-picker-list {
+  display: flex; flex-direction: column; gap: 6px; padding: 8px 2px;
+}
+
+/* ---------- v0.3: editable options + table move ---------- */
+.opt-rows { display: flex; flex-direction: column; gap: 6px; }
+.opt-row { display: flex; align-items: center; gap: 8px; }
+.mini.wide { width: 190px; }
+.star {
+  background: none; font-size: 18px; line-height: 1;
+  color: var(--line); padding: 0 2px; width: 24px;
+}
+.star.on { color: var(--amber); }
+.star.ghost-slot { visibility: hidden; }
+.x.big {
+  background: none; color: var(--muted); font-size: 18px; padding: 0 4px;
+}
+.x.big:hover { color: #b3261e; }
+.name-edit {
+  border: 1px solid transparent; border-radius: 6px; padding: 6px;
+  background: transparent; width: 100%; max-width: 220px;
+}
+.name-edit:hover, .name-edit:focus { border-color: var(--line); background: white; }
+.table-move {
+  border: none; background: transparent; font: inherit; font-weight: 700;
+  font-size: 17px; color: var(--ink); padding: 0;
+  border-bottom: 1px dotted var(--muted); cursor: pointer;
+}
+
+/* v0.4: categories & tables management */
+.panel.two-col {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 16px;
+}
+.panel { margin-bottom: 16px; }
+@media (max-width: 700px) { .panel.two-col { grid-template-columns: 1fr; } }
+
+/* ---------- v0.5: Z report, category checks, inactive options ---------- */
+.panel-head { display: flex; justify-content: space-between; align-items: center; }
+.z-total td { border-top: 2px solid var(--ink); }
+.opt-row.off .mini { opacity: .45; }
+
+@media print {
+  body * { visibility: hidden; }
+  .z-print, .z-print * { visibility: visible; }
+  .z-print { position: absolute; left: 0; top: 0; width: 100%; padding: 24px; }
+  .no-print { display: none !important; }
+}
+
+/* v0.6.1: quick-add group inside the product options picker */
+.opt-picker-add {
+  display: flex; gap: 6px; margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- v0.7: one tab per table on the Bar screen ---------- */
+.round { padding: 6px 0; }
+.round + .round { border-top: 1px dotted var(--line); }
+.round-head {
+  font-family: var(--mono); font-size: 12px; color: var(--muted);
+  margin-bottom: 4px;
+}
+.tab-total { font-size: 18px; font-weight: 700; }
+
+/* ---------- v0.8: table areas ---------- */
+.opt-row select {
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: white; font-size: 14px;
+}
+.new-product.spaced { margin-top: 16px; }
+
+/* ---------- v0.9: manage areas & tables in place ---------- */
+.tab { position: relative; }
+.tab .tab-x {
+  margin-left: 8px; opacity: .75; font-weight: 400; cursor: pointer;
+}
+.tab .tab-x:hover { opacity: 1; }
+.tab.add {
+  border: 2px dashed var(--line); background: transparent;
+  color: var(--muted);
+}
+.tile { position: relative; }
+.tile-x {
+  position: absolute; top: 4px; right: 9px; font-size: 15px;
+  color: var(--muted); cursor: pointer;
+}
+.tile-x:hover { color: #b3261e; }
+.tile.add {
+  border: 2px dashed var(--line); background: transparent;
+  color: var(--muted); box-shadow: none;
+}
+
+/* ---------- v0.10: per-area table numbering ---------- */
+.tab-title { display: flex; flex-direction: column; }
+.tab-area {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--muted);
+}
+
+/* version tag */
+.brand .version {
+  font-style: normal; font-size: 11px; font-weight: 400;
+  color: #9a958a; margin-left: 8px; letter-spacing: 0;
+}
+
+/* ---------- v0.13: search ---------- */
+.search {
+  display: block; width: 100%; max-width: 420px; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: white; font-size: 15px; margin-bottom: 10px;
+}
+
+/* ---------- v0.15: phone-first pass ---------- */
+.device-url {
+  font-family: var(--mono); font-size: 20px; letter-spacing: .02em;
+  background: var(--paper); border: 1px dashed var(--line);
+  padding: 12px 18px; border-radius: 10px; display: inline-block;
+  user-select: all; margin: 6px 0;
+}
+@media (max-width: 760px) {
+  /* the cart becomes a bottom sheet: Send is always on screen */
+  .order-screen { padding-bottom: 46vh; }
+  .receipt {
+    position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 15;
+    max-height: 44vh; overflow-y: auto; margin: 0;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 28px #00000026;
+  }
+  .backdrop { z-index: 30; }
+  .grid.tables { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+  .cat-tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .cat-tabs .tab { white-space: nowrap; flex: 0 0 auto; }
+  .grid.cards { grid-template-columns: 1fr; }
+}
+
+/* ---------- v0.16: mobile hardening + open tab at the table ---------- */
+html, body { max-width: 100%; overflow-x: hidden; }
+.line-name, .tile-name { min-width: 0; overflow-wrap: anywhere; }
+
+.open-tab {
+  border-bottom: 1px dashed var(--line);
+  padding-bottom: 10px; margin-bottom: 10px;
+}
+.open-tab summary {
+  cursor: pointer; font-weight: 700; font-size: 15px;
+  color: var(--accent); padding: 2px 0;
+}
+.open-tab .cta.small { margin-top: 8px; }
+
+@media (max-width: 760px) {
+  .topbar { flex-wrap: wrap; padding: 8px 10px; gap: 4px 8px; }
+  .topbar nav { order: 3; flex-basis: 100%; overflow-x: auto; }
+  .topbar nav a { white-space: nowrap; }
+  .stats { flex-wrap: wrap; }
+  .stat { flex: 1 1 44%; }
+  .panel { overflow-x: auto; }
+  .new-product, .opt-row, .group-row-head { flex-wrap: wrap; }
+  .mini.wide { width: 100%; max-width: 260px; }
+  .sheet { max-height: 86vh; }
+}
+
+/* ---------- v0.17: move table from the waiter's open tab ---------- */
+.tab-actions {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 10px;
+}
+.move-select {
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: white; font-size: 14px;
+}
+
+/* ---------- v0.18: the table name is the mover ---------- */
+.table-switch {
+  font-family: var(--mono); font-size: 15px; letter-spacing: .12em;
+  text-transform: uppercase; border: none; background: transparent;
+  color: var(--ink); max-width: 100%; cursor: pointer;
+  border-bottom: 1px dotted var(--muted); padding: 2px 4px;
+  text-align: center; text-align-last: center;
+}
+
+/* ---------- v0.19: unclip horizontal scrollers ---------- */
+/* Grid/flex children default to min-width:auto and refuse to shrink,
+   which silently disables overflow-x on anything inside them - the
+   category tabs and product grid were being clipped, not scrolled. */
+.order-screen > * { min-width: 0; }
+.menu { min-width: 0; }
+.cat-tabs {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.cat-tabs::-webkit-scrollbar { display: none; }
+@media (max-width: 760px) {
+  .cat-tabs { flex-wrap: nowrap; overflow-x: auto; }
+  .grid.products {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  .topbar nav { scrollbar-width: none; }
+  .topbar nav::-webkit-scrollbar { display: none; }
+}
+
+/* ---------- v0.20: reorder arrows + cancel round ---------- */
+.arrows { display: flex; flex-direction: column; }
+.arrow {
+  background: none; color: var(--line); font-size: 9px;
+  line-height: 1.15; padding: 0 5px; cursor: pointer;
+}
+.arrow:hover { color: var(--ink); }
+.round-head { display: flex; align-items: center; gap: 8px; }
+.round-x {
+  margin-left: auto; font-size: 16px; color: var(--muted);
+  background: none; padding: 0 4px;
+}
+.round-x:hover { color: #b3261e; }
+
+/* ---------- v0.21: arrows you can actually see ---------- */
+.arrow { font-size: 12px; color: var(--muted); padding: 1px 6px; }
+.arrow:hover, .arrow:active { color: var(--accent); }
