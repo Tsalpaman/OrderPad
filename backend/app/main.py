@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import migrate
 from .deps import require_admin
-from .routers import auth, catalog, options, orders, tables, users
+from .routers import auth, catalog, options, orders, stats, tables, users
 from .ws import router as ws_router
 
 # When the frontend has been built, this API server also serves it - one
@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="OrderPad API", version="0.23.0", lifespan=lifespan)
+app = FastAPI(title="OrderPad API", version="0.24.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
                    allow_methods=["*"], allow_headers=["*"])
 
@@ -57,7 +57,8 @@ def server_info(request: Request, _=Depends(require_admin)):
 
 
 for router in (auth.router, catalog.router, tables.router,
-               orders.router, options.router, users.router):
+               orders.router, options.router, users.router,
+               stats.router):
     app.include_router(router, prefix="/api")
 app.include_router(ws_router)
 

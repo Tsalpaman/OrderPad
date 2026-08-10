@@ -4,6 +4,18 @@ All notable changes to OrderPad, newest first. Versions were developed
 iteratively against a real café/bar workflow, each one field-tested on an
 Android device over the shop WiFi before moving on.
 
+## v0.24
+- Statistics section (admin): revenue trend, busiest-hours detection, a
+  Pareto 80/20 product breakdown, and product-affinity analysis (which
+  items sell together, by support and lift) - all computed from order
+  history, no external service.
+- Merge tables: from the order screen the waiter pulls another table's
+  open orders into the current one ("Merge table here"), for parties that
+  join tables. One combined bill, per-waiter Z split intact, the emptied
+  table frees up instantly.
+- Removed the redundant quick-add group control from the Menu (option
+  groups are created in the Option groups panel above).
+
 ## v0.23
 - Bar overview sorts open tabs oldest-first again, so the barman prepares
   the longest-waiting orders first. The area label on each card keeps the

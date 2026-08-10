@@ -101,18 +101,23 @@ export default function Order() {
 
   const [tables, setTables] = useState([])
   const [areas, setAreas] = useState([])
-  const [tab, setTab] = useState([])  // rounds already sent to this table
+  const [activeOrders, setActiveOrders] = useState([])  // whole floor
+
+  const refreshActive = () =>
+    api('/api/orders?active=1').then(setActiveOrders).catch(console.error)
 
   useEffect(() => {
     api('/api/catalog').then(setCatalog).catch(console.error)
     api('/api/tables').then(setTables).catch(console.error)
     api('/api/areas').then(setAreas).catch(console.error)
-    api('/api/orders?active=1')
-      .then(list => setTab(list.filter(o => o.table.id === Number(tableId))))
-      .catch(console.error)
+    refreshActive()
   }, [tableId])
 
   const tableInfo = tables.find(t => t.id === Number(tableId)) || null
+  const tab = activeOrders.filter(o => o.table.id === Number(tableId))
+  const busyIds = new Set(activeOrders.map(o => o.table.id))
+  const mergeable = tables.filter(
+    t => busyIds.has(t.id) && t.id !== Number(tableId))
 
   const tabTotal = tab.reduce((sum, o) => sum + o.total_cents, 0)
   const clock = iso => new Date(iso)
@@ -137,9 +142,7 @@ export default function Order() {
     } catch (e) { setError(e.message) }
   }
 
-  const refreshTab = () => api('/api/orders?active=1')
-    .then(list => setTab(list.filter(o => o.table.id === Number(tableId))))
-    .catch(console.error)
+  const refreshTab = refreshActive
 
   const cancelRound = async order => {
     if (!confirm(`Cancel this round (${euro(order.total_cents)})?`)) return
@@ -154,6 +157,20 @@ export default function Order() {
     try {
       await api(`/api/tables/${tableId}/cancel`, { method: 'POST' })
       navigate('/tables')
+    } catch (e) { setError(e.message) }
+  }
+
+  const mergeFrom = async fromId => {
+    if (!fromId) return
+    const source = tables.find(t => t.id === Number(fromId))
+    const label = source
+      ? `${source.area_name ? source.area_name + ' · ' : ''}${source.name}`
+      : 'that table'
+    if (!confirm(`Merge ${label} into this table? Its open orders move here.`)) return
+    try {
+      await api(`/api/tables/${fromId}/transfer`,
+        { method: 'POST', body: { table_id: Number(tableId) } })
+      refreshActive()
     } catch (e) { setError(e.message) }
   }
 
@@ -293,6 +310,22 @@ export default function Order() {
               </button>
             </div>
           </details>
+        )}
+        {mergeable.length > 0 && (
+          <div className="merge-row">
+            <span className="hint small">Merge table here:</span>
+            <select className="move-select" value=""
+              onChange={e => mergeFrom(e.target.value)}>
+              <option value="" disabled>choose&hellip;</option>
+              {areas.map(a => (
+                <optgroup key={a.id} label={a.name}>
+                  {mergeable.filter(t => t.area_id === a.id).map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
         )}
         {cart.length === 0 && <p className="hint">Tap products to add them.</p>}
         {cart.map((line, i) => (

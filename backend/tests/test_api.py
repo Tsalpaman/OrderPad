@@ -581,3 +581,48 @@ def test_categories_follow_manual_order_with_move():
                           json={"name": "Aaa Newest"}).json()
     assert names()[-1] == "Aaa Newest"  # appends - not alphabetical
     client.delete(f"/api/categories/{created['id']}", headers=headers)
+
+
+def test_merging_tables_combines_open_tabs():
+    headers = _auth("1111")
+    catalog = client.get("/api/catalog", headers=headers).json()
+    espresso = _find(catalog, "Espresso")
+    medium = _option(espresso, "Sugar", "Medium")
+
+    def order_on(table_id, qty):
+        return client.post("/api/orders", headers=headers, json={
+            "table_id": table_id,
+            "items": [{"product_id": espresso["id"], "qty": qty,
+                       "option_ids": [medium["id"]]}]}).json()
+
+    order_on(9, 1)   # Table 9: 2.00
+    order_on(10, 2)  # Table 10: 4.00
+
+    moved = client.post("/api/tables/10/transfer", headers=headers,
+                        json={"table_id": 9}).json()
+    assert moved["orders_moved"] == 1
+
+    active = client.get("/api/orders?active=1", headers=headers).json()
+    assert sum(1 for o in active if o["table"]["id"] == 9) == 2  # combined
+    assert not any(o["table"]["id"] == 10 for o in active)       # freed
+
+    settled = client.post("/api/tables/9/settle", headers=headers).json()
+    assert settled["total_cents"] == 600  # one bill for the joined party
+
+
+def test_stats_endpoint_computes_analytics():
+    admin = _auth("9999")
+    assert client.get("/api/stats", headers=_auth("1111")).status_code == 403
+
+    s = client.get("/api/stats", headers=admin).json()
+    for key in ("total_orders", "total_revenue_cents", "avg_order_cents",
+                "revenue_by_day", "by_hour", "pareto", "affinity"):
+        assert key in s
+    assert len(s["by_hour"]) == 24
+    assert len(s["revenue_by_day"]) == 14
+    # earlier tests placed multi-item and repeated orders, so analytics
+    # should have found real signal
+    assert s["total_orders"] > 0
+    assert s["total_revenue_cents"] > 0
+    if s["total_orders"]:
+        assert 0 <= s["pareto_count"] <= s["pareto_total_products"]

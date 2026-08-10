@@ -285,11 +285,6 @@ tr.off td { opacity: .45; }
   .no-print { display: none !important; }
 }
 
-/* v0.6.1: quick-add group inside the product options picker */
-.opt-picker-add {
-  display: flex; gap: 6px; margin-top: 8px; padding-top: 8px;
-  border-top: 1px solid var(--line);
-}
 
 /* ---------- v0.7: one tab per table on the Bar screen ---------- */
 .round { padding: 6px 0; }
@@ -453,3 +448,40 @@ html, body { max-width: 100%; overflow-x: hidden; }
 /* ---------- v0.21: arrows you can actually see ---------- */
 .arrow { font-size: 12px; color: var(--muted); padding: 1px 6px; }
 .arrow:hover, .arrow:active { color: var(--accent); }
+
+/* ---------- v0.24-dev: merge tables ---------- */
+.merge-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding-bottom: 10px; margin-bottom: 10px;
+  border-bottom: 1px dashed var(--line);
+}
+
+/* ---------- v0.24-dev: statistics ---------- */
+.bar-chart {
+  display: flex; align-items: flex-end; gap: 6px; height: 160px;
+  padding-top: 8px; overflow-x: auto;
+}
+.bar-col {
+  flex: 1 1 0; min-width: 22px; height: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-end; gap: 4px;
+}
+.bar-fill {
+  width: 100%; max-width: 34px; min-height: 2px;
+  background: var(--accent); border-radius: 4px 4px 0 0;
+  transition: height .3s ease;
+}
+.bar-fill.peak { background: var(--amber); }
+.bar-label { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+.pareto-headline { font-size: 15px; margin: 4px 0 10px; }
+.vital-few { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.vital-few td:first-child { font-weight: 600; }
+.cum-cell { position: relative; min-width: 120px; }
+.cum-bar {
+  position: absolute; inset: 0 auto 0 0; height: 100%;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 3px;
+}
+.cum-cell span { position: relative; font-size: 12px; padding-left: 4px; }
+.plus { color: var(--muted); }
+.lift-strong { color: var(--accent); font-weight: 700; }

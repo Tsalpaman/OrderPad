@@ -15,7 +15,6 @@ export default function Admin() {
     { name: '', selection: 'single', required: false })
   const [optionDrafts, setOptionDrafts] = useState({})
   const [catDraft, setCatDraft] = useState('')
-  const [quickGroup, setQuickGroup] = useState({})  // productId -> draft name
   const [menuQuery, setMenuQuery] = useState('')
   const [users, setUsers] = useState([])
   const [staffDraft, setStaffDraft] = useState(
@@ -87,20 +86,6 @@ export default function Admin() {
       : [...ids, group.id]
     save(product, { option_group_ids: next })
   }
-
-  const quickAddGroup = guard(async product => {
-    const name = (quickGroup[product.id] || '').trim()
-    if (!name) return
-    const group = await api('/api/option-groups', { method: 'POST',
-      body: { name, selection: 'single', required: false } })
-    await api(`/api/products/${product.id}`, { method: 'PATCH', body: {
-      name: product.name, price_cents: product.price_cents,
-      category_id: product.category_id, active: product.active,
-      option_group_ids: [...product.option_groups.map(g => g.id), group.id],
-    }})
-    setQuickGroup({ ...quickGroup, [product.id]: '' })
-    reload()
-  })
 
   const create = guard(async () => {
     if (!draft.name || !draft.price) return
@@ -501,16 +486,6 @@ export default function Admin() {
                         </label>
                       ))}
                       {groups.length === 0 && <span className="hint small">no groups yet</span>}
-                      <div className="opt-picker-add">
-                        <input className="mini" placeholder="New group (e.g. Milk)"
-                          value={quickGroup[p.id] || ''}
-                          onChange={e => setQuickGroup({ ...quickGroup, [p.id]: e.target.value })}
-                          onKeyDown={e => e.key === 'Enter' && quickAddGroup(p)} />
-                        <button className="cta small" onClick={() => quickAddGroup(p)}>Add</button>
-                      </div>
-                      <span className="hint small">
-                        new groups start empty - add their choices in Option groups above
-                      </span>
                     </div>
                   </details>
                 </td>
