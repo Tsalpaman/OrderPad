@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, euro } from '../api.js'
 
-const HOURS_SHOWN = Array.from({ length: 18 }, (_, i) => i + 7)  // 07:00–24:00
+const HOURS_SHOWN = Array.from({ length: 17 }, (_, i) => i + 7)  // 07:00–23:00
 
 export default function Stats() {
   const [s, setS] = useState(null)
@@ -39,7 +39,7 @@ export default function Stats() {
         <h3>Busiest hours <span className="hint small">· by order count</span></h3>
         <div className="bar-chart">
           {HOURS_SHOWN.map(h => {
-            const row = s.by_hour[h]
+            const row = s.by_hour[h] || { orders: 0, revenue_cents: 0 }
             const peak = h === s.peak_hour
             return (
               <div key={h} className="bar-col"

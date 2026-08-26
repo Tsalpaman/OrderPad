@@ -4,6 +4,11 @@ All notable changes to OrderPad, newest first. Versions were developed
 iteratively against a real café/bar workflow, each one field-tested on an
 Android device over the shop WiFi before moving on.
 
+## v0.24.1
+- Fixed a crash on the Statistics page: the busiest-hours chart read a
+  non-existent 24:00 bucket and blanked the whole view. Now bounded to
+  07:00–23:00 with a guard against any missing hour.
+
 ## v0.24
 - Statistics section (admin): revenue trend, busiest-hours detection, a
   Pareto 80/20 product breakdown, and product-affinity analysis (which
