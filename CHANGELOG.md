@@ -4,6 +4,16 @@ All notable changes to OrderPad, newest first. Versions were developed
 iteratively against a real café/bar workflow, each one field-tested on an
 Android device over the shop WiFi before moving on.
 
+## v0.26
+- Every statistics panel can be switched on/off from Admin -> Statistics
+  panels. The preference is stored server-side, so hiding a panel on the
+  PC hides it on the phones too; unknown/new panels default to visible.
+
+## v0.25
+- Staff performance analytics: per-waiter orders, revenue, average check,
+  items per order, and the attach rate of paid extras (the real upselling
+  signal), with each figure flagged against the team average.
+
 ## v0.24.1
 - Fixed a crash on the Statistics page: the busiest-hours chart read a
   non-existent 24:00 bucket and blanked the whole view. Now bounded to

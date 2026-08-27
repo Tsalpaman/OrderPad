@@ -79,6 +79,14 @@ class Product(Base):
         order_by="[OptionGroup.sort, OptionGroup.id]")
 
 
+class Setting(Base):
+    """Tiny key/value store for admin preferences that must follow the
+    venue rather than the browser (e.g. which stats panels are shown)."""
+    __tablename__ = "settings"
+    key: Mapped[str] = mapped_column(String(60), primary_key=True)
+    value: Mapped[str] = mapped_column(String(500))
+
+
 class Area(Base):
     """A zone of the venue: Upstairs, Downstairs, Beach..."""
     __tablename__ = "areas"
