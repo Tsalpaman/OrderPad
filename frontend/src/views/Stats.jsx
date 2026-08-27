@@ -13,19 +13,32 @@ export default function Stats() {
   }, [])
   if (!s) return <main><p className="hint">Loading analytics…</p></main>
 
+  const on = key => s.panels?.[key] !== false
+  const allHidden = s.panels && Object.values(s.panels).every(v => v === false)
+
   const dayMax = Math.max(1, ...s.revenue_by_day.map(d => d.revenue_cents))
   const hourMax = Math.max(1, ...s.by_hour.map(h => h.orders))
   const shortDay = iso => iso.slice(5)  // MM-DD
 
   return (
     <main className="stats-page">
+      {allHidden && (
+        <p className="hint">
+          All statistics panels are switched off — turn them back on in
+          Admin → Statistics panels.
+        </p>
+      )}
+
+      {on('summary') && (
       <section className="stats">
         <div className="stat"><b>{s.total_orders}</b><span>orders total</span></div>
         <div className="stat"><b>{euro(s.total_revenue_cents)}</b><span>revenue total</span></div>
         <div className="stat"><b>{euro(s.avg_order_cents)}</b><span>avg order</span></div>
         <div className="stat"><b>{s.peak_hour != null ? `${s.peak_hour}:00` : '–'}</b><span>peak hour</span></div>
       </section>
+      )}
 
+      {on('revenue_by_day') && (
       <section className="panel">
         <h3>Revenue · last 14 days</h3>
         <div className="bar-chart">
@@ -38,7 +51,9 @@ export default function Stats() {
           ))}
         </div>
       </section>
+      )}
 
+      {on('by_hour') && (
       <section className="panel">
         <h3>Busiest hours <span className="hint small">· by order count</span></h3>
         <div className="bar-chart">
@@ -56,8 +71,9 @@ export default function Stats() {
           })}
         </div>
       </section>
+      )}
 
-      {staff && staff.staff.length > 0 && (
+      {on('staff') && staff && staff.staff.length > 0 && (
         <section className="panel">
           <h3>Staff performance <span className="hint small">· last {staff.days} days</span></h3>
           <p className="hint small">
@@ -116,6 +132,7 @@ export default function Stats() {
         </section>
       )}
 
+      {on('pareto') && (
       <section className="panel">
         <h3>Pareto · the 80/20 of the menu</h3>
         {s.total_orders === 0 ? <p className="hint">No sales yet.</p> : (
@@ -145,7 +162,9 @@ export default function Stats() {
           </>
         )}
       </section>
+      )}
 
+      {on('affinity') && (
       <section className="panel">
         <h3>Sold together <span className="hint small">· product affinity</span></h3>
         {s.affinity.length === 0 ? (
@@ -172,6 +191,7 @@ export default function Stats() {
           </>
         )}
       </section>
+      )}
     </main>
   )
 }

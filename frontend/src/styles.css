@@ -493,3 +493,14 @@ html, body { max-width: 100%; overflow-x: hidden; }
 }
 .metric-good { color: var(--accent); font-weight: 700; }
 .staff-table tr.off td { opacity: .55; }
+
+/* ---------- v0.26: stats panel toggles ---------- */
+.panel-toggles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px 18px; margin-top: 10px;
+}
+.toggle-row { display: flex; align-items: center; gap: 10px; }
+.toggle-row .sub {
+  display: block; font-size: 12px; color: var(--muted);
+}
+.ghost.on { color: var(--accent); border-color: var(--accent); font-weight: 700; }

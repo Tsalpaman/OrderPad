@@ -650,3 +650,26 @@ def test_staff_stats_measures_performance():
     # Maria ordered an "Extra shot" (+0.50) in an earlier test
     assert maria["extras_revenue_cents"] > 0
     assert round(sum(w["revenue_share_pct"] for w in body["staff"])) in (99, 100, 101)
+
+
+def test_stats_panel_visibility_toggles():
+    admin = _auth("9999")
+    assert client.get("/api/stats-settings",
+                      headers=_auth("1111")).status_code == 403
+
+    defaults = client.get("/api/stats-settings", headers=admin).json()["panels"]
+    assert all(defaults.values()), "everything visible by default"
+
+    saved = client.patch("/api/stats-settings", headers=admin,
+                         json={"panels": {"affinity": False,
+                                          "by_hour": False}}).json()["panels"]
+    assert saved["affinity"] is False and saved["by_hour"] is False
+    assert saved["pareto"] is True  # untouched panels stay on
+
+    # the main stats payload carries the same visibility map
+    assert client.get("/api/stats", headers=admin).json()["panels"]["affinity"] is False
+
+    client.patch("/api/stats-settings", headers=admin,
+                 json={"panels": {"affinity": True, "by_hour": True}})
+    assert all(client.get("/api/stats-settings",
+                          headers=admin).json()["panels"].values())
