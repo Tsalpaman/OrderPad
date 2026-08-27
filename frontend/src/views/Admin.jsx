@@ -21,7 +21,6 @@ export default function Admin() {
     { name: '', pin: '', role: 'waiter' })
   const [pinDrafts, setPinDrafts] = useState({})
   const [serverInfo, setServerInfo] = useState(null)
-  const [panels, setPanels] = useState(null)
 
   // Prevents double-fired deletes (e.g. a stray second click before the
   // list re-renders) from re-targeting an id that's already gone and
@@ -31,11 +30,10 @@ export default function Admin() {
   const reload = () => Promise.all([
     api('/api/summary'), api('/api/products'), api('/api/catalog'),
     api('/api/option-groups'), api('/api/reports/z'), api('/api/users'),
-    api('/api/server-info'), api('/api/stats-settings'),
-  ]).then(([s, p, c, g, z, u, srv, st]) => {
+    api('/api/server-info'),
+  ]).then(([s, p, c, g, z, u, srv]) => {
     setSummary(s); setProducts(p); setCatalog(c)
     setGroups(g); setZReport(z); setUsers(u); setServerInfo(srv)
-    setPanels(st.panels)
   }).catch(console.error)
 
   useEffect(() => {
@@ -164,14 +162,6 @@ export default function Admin() {
     reload()
   })
 
-  const togglePanel = guard(async key => {
-    const next = { ...panels, [key]: !panels[key] }
-    setPanels(next)  // optimistic: the switch responds instantly
-    const saved = await api('/api/stats-settings',
-      { method: 'PATCH', body: { panels: { [key]: next[key] } } })
-    setPanels(saved.panels)
-  })
-
   const createUser = guard(async () => {
     const { name, pin, role } = staffDraft
     if (!name.trim() || pin.length < 4) return
@@ -261,37 +251,6 @@ export default function Admin() {
           </tbody>
         </table>
       </section>
-
-      {panels && (
-        <section className="panel">
-          <h3>Statistics panels</h3>
-          <p className="hint small">
-            Switch off anything you don't want on the Stats page. The
-            setting is stored on the server, so it applies to every device.
-          </p>
-          <div className="panel-toggles">
-            {[
-              ['summary', 'Summary cards', 'Totals, average order, peak hour'],
-              ['revenue_by_day', 'Revenue trend', 'Daily revenue, last 14 days'],
-              ['by_hour', 'Busiest hours', 'Orders per hour of the day'],
-              ['staff', 'Staff performance', 'Per-waiter sales metrics'],
-              ['pareto', 'Pareto 80/20', 'Which products drive the revenue'],
-              ['affinity', 'Sold together', 'Products bought in the same order'],
-            ].map(([key, label, note]) => (
-              <div key={key} className="toggle-row">
-                <button className={panels[key] ? 'ghost on' : 'ghost'}
-                  onClick={() => togglePanel(key)}>
-                  {panels[key] ? 'on' : 'off'}
-                </button>
-                <span>
-                  <b>{label}</b>
-                  <span className="sub">{note}</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       <section className="panel">
         <h3>Staff</h3>

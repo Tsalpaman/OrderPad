@@ -6,46 +6,13 @@ from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 from itertools import combinations
 
-import json
-
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 
 from ..deps import get_db, require_admin
-from ..models import Order, Setting
+from ..models import Order
 
 router = APIRouter(tags=["stats"])
-
-PANELS = ("summary", "revenue_by_day", "by_hour", "staff", "pareto",
-          "affinity")
-PANELS_KEY = "stats_panels"
-
-
-def _panels(db) -> dict:
-    """Which stats panels are visible. Anything unknown defaults to on, so
-    a panel added in a later version shows up without a migration."""
-    row = db.get(Setting, PANELS_KEY)
-    saved = json.loads(row.value) if row else {}
-    return {p: bool(saved.get(p, True)) for p in PANELS}
-
-
-@router.get("/stats-settings")
-def get_stats_settings(db=Depends(get_db), _=Depends(require_admin)):
-    return {"panels": _panels(db)}
-
-
-@router.patch("/stats-settings")
-def set_stats_settings(panels: dict = Body(..., embed=True),
-                       db=Depends(get_db), _=Depends(require_admin)):
-    current = _panels(db)
-    current.update({k: bool(v) for k, v in panels.items() if k in PANELS})
-    row = db.get(Setting, PANELS_KEY)
-    if row:
-        row.value = json.dumps(current)
-    else:
-        db.add(Setting(key=PANELS_KEY, value=json.dumps(current)))
-    db.commit()
-    return {"panels": current}
 
 
 def _line_total(item) -> int:
@@ -116,7 +83,6 @@ def stats(days: int = 14, db=Depends(get_db), _=Depends(require_admin)):
                          "support_pct": support, "lift": lift})
 
     return {
-        "panels": _panels(db),
         "total_orders": n,
         "total_revenue_cents": total_revenue,
         "avg_order_cents": round(total_revenue / n) if n else 0,
