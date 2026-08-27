@@ -4,6 +4,11 @@ All notable changes to OrderPad, newest first. Versions were developed
 iteratively against a real café/bar workflow, each one field-tested on an
 Android device over the shop WiFi before moving on.
 
+## v0.28
+- A "split" action on any line with two or more units breaks it into
+  single items, so guests who ordered the same drink can each pay their
+  own. Options and price snapshots are carried over; the total never moves.
+
 ## v0.27
 - Split payments: tick individual lines on an open tab and settle just
   those, so one guest pays their own drink while the table stays open. An

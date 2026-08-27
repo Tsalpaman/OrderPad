@@ -515,3 +515,9 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .stats.inline { margin-bottom: 12px; }
 .metric-warn { color: #b3261e; font-weight: 600; }
 .metric-revenue { font-weight: 600; }
+
+/* v0.28: split a quantity line */
+.split-btn {
+  background: none; color: var(--accent); font-family: var(--mono);
+  font-size: 11px; text-decoration: underline dotted; padding: 0 4px;
+}

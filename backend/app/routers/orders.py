@@ -156,6 +156,39 @@ async def cancel_table(table_id: int, db=Depends(get_db),
             "total_cents": total}
 
 
+@router.post("/order-items/{item_id}/split", response_model=OrderOut)
+async def split_item(item_id: int, db=Depends(get_db),
+                     _=Depends(get_current_user)):
+    """Break a quantity line into single units so guests who ordered the
+    same drink can each pay their own. 2x Freddo becomes 1x + 1x."""
+    item = db.get(OrderItem, item_id)
+    if not item:
+        raise HTTPException(404, "Item not found")
+    order = item.order
+    if order.status in CLOSED_STATUSES:
+        raise HTTPException(422, "Order is already closed")
+    if item.paid_at is not None:
+        raise HTTPException(422, "This line is already paid")
+    if item.qty < 2:
+        raise HTTPException(422, "Nothing to split - the line is a single item")
+
+    extras = item.qty - 1
+    item.qty = 1
+    for _copy in range(extras):
+        db.add(OrderItem(
+            order_id=order.id, product_id=item.product_id, qty=1,
+            note=item.note, price_cents=item.price_cents,
+            options=[OrderItemOption(name=o.name,
+                                     price_delta_cents=o.price_delta_cents)
+                     for o in item.options]))
+    db.commit()
+    db.refresh(order)
+    payload = _order_out(order)
+    await manager.broadcast({"type": "order.updated",
+                             "order": OrderOut(**payload).model_dump(mode="json")})
+    return payload
+
+
 @router.post("/tables/{table_id}/pay-items", response_model=PayItemsOut)
 async def pay_items(table_id: int, body: PayItemsIn, db=Depends(get_db),
                     _=Depends(get_current_user)):

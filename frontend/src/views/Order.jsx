@@ -132,6 +132,14 @@ export default function Order() {
     return next
   })
 
+  const splitLine = async item => {
+    if (!confirm(`Split ${item.qty}× ${item.name} into separate items?`)) return
+    try {
+      await api(`/api/order-items/${item.id}/split`, { method: 'POST' })
+      refreshActive()
+    } catch (e) { setError(e.message) }
+  }
+
   const paySelected = async () => {
     if (picked.size === 0) return
     if (!confirm(`Pay ${picked.size} item(s) · ${euro(pickedTotal)}?`)) return
@@ -324,6 +332,12 @@ export default function Order() {
                         )}
                         {i.note && <em> - {i.note}</em>}
                       </span>
+                      {!i.paid && i.qty > 1 && i.id != null && (
+                        <button className="split-btn" title="Pay separately"
+                          onMouseDown={e => { e.preventDefault(); splitLine(i) }}>
+                          split
+                        </button>
+                      )}
                       <span className="line-price">
                         {i.paid ? 'paid' : euro(i.line_total_cents ?? 0)}
                       </span>

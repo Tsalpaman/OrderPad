@@ -737,3 +737,35 @@ def test_cancellations_are_recorded_and_measured():
     nikos = next((w for w in z["waiters"] if w["waiter"] == "Nikos"), None)
     summary = client.get("/api/summary", headers=_auth("9999")).json()
     assert summary["revenue_cents_today"] >= 0
+
+
+def test_split_quantity_line_lets_guests_pay_separately():
+    headers = _auth("1111")
+    catalog = client.get("/api/catalog", headers=headers).json()
+    freddo = _find(catalog, "Freddo Cappuccino")
+    medium = _option(freddo, "Sugar", "Medium")
+
+    order = client.post("/api/orders", headers=headers, json={
+        "table_id": 12,
+        "items": [{"product_id": freddo["id"], "qty": 2,
+                   "option_ids": [medium["id"]]}]}).json()
+    assert len(order["items"]) == 1 and order["total_cents"] == 700
+
+    line = order["items"][0]
+    split = client.post(f"/api/order-items/{line['id']}/split",
+                        headers=headers).json()
+    assert len(split["items"]) == 2, "one 2x line became two 1x lines"
+    assert all(i["qty"] == 1 for i in split["items"])
+    assert split["total_cents"] == 700, "money is unchanged by splitting"
+    # the option snapshot is carried onto the new line
+    assert all(i["options"][0]["name"] == "Medium" for i in split["items"])
+
+    first = split["items"][0]
+    paid = client.post("/api/tables/12/pay-items", headers=headers,
+                       json={"item_ids": [first["id"]]}).json()
+    assert paid["paid_cents"] == 350
+    assert paid["table_due_cents"] == 350  # the friend still owes theirs
+
+    # guards: a single-unit line cannot be split, nor a paid one
+    assert client.post(f"/api/order-items/{first['id']}/split",
+                       headers=headers).status_code == 422
