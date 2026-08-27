@@ -504,3 +504,14 @@ html, body { max-width: 100%; overflow-x: hidden; }
   display: block; font-size: 12px; color: var(--muted);
 }
 .ghost.on { color: var(--accent); border-color: var(--accent); font-weight: 700; }
+
+/* ---------- v0.27: split payments + cancellation audit ---------- */
+.tab-lines li { display: flex; align-items: baseline; gap: 8px; }
+.tab-lines .line-body { flex: 1; min-width: 0; }
+.tab-lines .line-price { font-family: var(--mono); font-size: 12px; }
+.tab-lines .line-paid { opacity: .5; text-decoration: line-through; }
+.tab-lines .line-paid .line-price { text-decoration: none; color: var(--accent); }
+.pay-selected { width: 100%; margin-bottom: 8px; }
+.stats.inline { margin-bottom: 12px; }
+.metric-warn { color: #b3261e; font-weight: 600; }
+.metric-revenue { font-weight: 600; }

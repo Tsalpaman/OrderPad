@@ -97,6 +97,7 @@ export default function Order() {
   const [cart, setCart] = useState([]) // {product, options[], qty, note, showNote}
   const [sheet, setSheet] = useState(null)
   const [sending, setSending] = useState(false)
+  const [picked, setPicked] = useState(new Set())  // line ids being paid
   const [error, setError] = useState('')
 
   const [tables, setTables] = useState([])
@@ -119,7 +120,28 @@ export default function Order() {
   const mergeable = tables.filter(
     t => busyIds.has(t.id) && t.id !== Number(tableId))
 
-  const tabTotal = tab.reduce((sum, o) => sum + o.total_cents, 0)
+  const tabTotal = tab.reduce((sum, o) => sum + (o.due_cents ?? o.total_cents), 0)
+  const tabLines = tab.flatMap(o => o.items.map(i => ({ ...i, order: o })))
+  const pickedTotal = tabLines
+    .filter(i => picked.has(i.id))
+    .reduce((sum, i) => sum + i.line_total_cents, 0)
+
+  const togglePick = id => setPicked(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+
+  const paySelected = async () => {
+    if (picked.size === 0) return
+    if (!confirm(`Pay ${picked.size} item(s) · ${euro(pickedTotal)}?`)) return
+    try {
+      await api(`/api/tables/${tableId}/pay-items`, { method: 'POST',
+        body: { item_ids: [...picked] } })
+      setPicked(new Set())
+      refreshActive()
+    } catch (e) { setError(e.message) }
+  }
   const clock = iso => new Date(iso)
     .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
@@ -288,19 +310,33 @@ export default function Order() {
                     &times;
                   </button>
                 </div>
-                <ul>
+                <ul className="tab-lines">
                   {o.items.map((i, k) => (
-                    <li key={k}>
-                      <b>{i.qty}&times;</b> {i.name}
-                      {i.options?.length > 0 && (
-                        <span className="opts"> — {i.options.map(x => x.name).join(', ')}</span>
+                    <li key={i.id ?? k} className={i.paid ? 'line-paid' : ''}>
+                      {!i.paid && i.id != null && (
+                        <input type="checkbox" checked={picked.has(i.id)}
+                          onChange={() => togglePick(i.id)} />
                       )}
-                      {i.note && <em> - {i.note}</em>}
+                      <span className="line-body">
+                        <b>{i.qty}&times;</b> {i.name}
+                        {i.options?.length > 0 && (
+                          <span className="opts"> — {i.options.map(x => x.name).join(', ')}</span>
+                        )}
+                        {i.note && <em> - {i.note}</em>}
+                      </span>
+                      <span className="line-price">
+                        {i.paid ? 'paid' : euro(i.line_total_cents ?? 0)}
+                      </span>
                     </li>
                   ))}
                 </ul>
               </div>
             ))}
+            {picked.size > 0 && (
+              <button className="cta small pay-selected" onClick={paySelected}>
+                Pay selected · {euro(pickedTotal)}
+              </button>
+            )}
             <div className="tab-actions">
               <button className="ghost danger" onClick={cancelTab}>
                 Cancel tab

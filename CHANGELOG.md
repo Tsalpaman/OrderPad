@@ -4,6 +4,17 @@ All notable changes to OrderPad, newest first. Versions were developed
 iteratively against a real café/bar workflow, each one field-tested on an
 Android device over the shop WiFi before moving on.
 
+## v0.27
+- Split payments: tick individual lines on an open tab and settle just
+  those, so one guest pays their own drink while the table stays open. An
+  order closes by itself once every line is paid.
+- Cancellations are now recorded instead of deleted, giving the owner an
+  audit trail: how many orders were voided, their value, and the average
+  delay between taking and cancelling an order (a long delay means the
+  drink was likely already made). Broken down per waiter, with the ten
+  most recent listed. Cancelled money never counts as revenue.
+- Staff table highlights the top revenue earner and flags cancellations.
+
 ## v0.26
 - Every statistics panel can be switched on/off from Admin -> Statistics
   panels. The preference is stored server-side, so hiding a panel on the

@@ -16,8 +16,8 @@ from ..models import Order, Setting
 
 router = APIRouter(tags=["stats"])
 
-PANELS = ("summary", "revenue_by_day", "by_hour", "staff", "pareto",
-          "affinity")
+PANELS = ("summary", "revenue_by_day", "by_hour", "staff",
+          "cancellations", "pareto", "affinity")
 PANELS_KEY = "stats_panels"
 
 
@@ -59,7 +59,8 @@ def _order_total(order) -> int:
 
 @router.get("/stats")
 def stats(days: int = 14, db=Depends(get_db), _=Depends(require_admin)):
-    orders = db.scalars(select(Order)).all()
+    orders = db.scalars(select(Order)
+                        .where(Order.status != "cancelled")).all()
     n = len(orders)
     total_revenue = sum(_order_total(o) for o in orders)
 
@@ -140,7 +141,9 @@ def staff_stats(days: int = 30, db=Depends(get_db), _=Depends(require_admin)):
     revenue those extras generated on their own.
     """
     since = datetime.combine(date.today() - timedelta(days - 1), time.min)
-    orders = db.scalars(select(Order).where(Order.created_at >= since)).all()
+    every = db.scalars(select(Order).where(Order.created_at >= since)).all()
+    orders = [o for o in every if o.status != "cancelled"]
+    cancelled = [o for o in every if o.status == "cancelled"]
 
     per = {}
     for o in orders:
@@ -166,6 +169,23 @@ def staff_stats(days: int = 30, db=Depends(get_db), _=Depends(require_admin)):
         if paid_extra:
             r["orders_with_paid_extra"] += 1
 
+    # cancellations are attributed to whoever raised the order
+    for o in cancelled:
+        r = per.setdefault(o.user_id, {
+            "waiter": o.user.name, "role": o.user.role, "active": o.user.active,
+            "orders": 0, "revenue_cents": 0, "items": 0,
+            "orders_with_paid_extra": 0, "extras_revenue_cents": 0,
+            "tables": set(), "days": set(), "hours": {},
+        })
+        r.setdefault("cancelled", 0)
+        r.setdefault("cancelled_cents", 0)
+        r.setdefault("cancel_minutes", [])
+        r["cancelled"] += 1
+        r["cancelled_cents"] += _order_total(o)
+        if o.cancelled_at:
+            gap = (o.cancelled_at - o.created_at).total_seconds() / 60
+            r["cancel_minutes"].append(max(0.0, gap))
+
     total_revenue = sum(r["revenue_cents"] for r in per.values()) or 0
     rows = []
     for r in per.values():
@@ -185,6 +205,11 @@ def staff_stats(days: int = 30, db=Depends(get_db), _=Depends(require_admin)):
             "busiest_hour": busiest,
             "revenue_share_pct": round(100 * r["revenue_cents"] / total_revenue, 1)
                                  if total_revenue else 0,
+            "cancelled": r.get("cancelled", 0),
+            "cancelled_cents": r.get("cancelled_cents", 0),
+            "avg_cancel_minutes": (
+                round(sum(r["cancel_minutes"]) / len(r["cancel_minutes"]), 1)
+                if r.get("cancel_minutes") else None),
         })
     rows.sort(key=lambda x: -x["revenue_cents"])
 
@@ -197,3 +222,63 @@ def staff_stats(days: int = 30, db=Depends(get_db), _=Depends(require_admin)):
     }
     return {"days": days, "staff": rows, "team": team,
             "total_revenue_cents": total_revenue}
+
+
+@router.get("/stats/cancellations")
+def cancellation_stats(days: int = 30, db=Depends(get_db),
+                       _=Depends(require_admin)):
+    """Voided orders: how much, by whom, and how long after the order was
+    taken. A long gap means the drink was likely made (and possibly served)
+    before being written off - the pattern worth watching."""
+    since = datetime.combine(date.today() - timedelta(days - 1), time.min)
+    cancelled = db.scalars(
+        select(Order).where(Order.created_at >= since,
+                            Order.status == "cancelled")).all()
+    kept = db.scalars(
+        select(Order).where(Order.created_at >= since,
+                            Order.status != "cancelled")).all()
+
+    gaps, per, recent = [], {}, []
+    total = 0
+    for o in cancelled:
+        amount = _order_total(o)
+        total += amount
+        minutes = None
+        if o.cancelled_at:
+            minutes = max(0.0, (o.cancelled_at - o.created_at).total_seconds() / 60)
+            gaps.append(minutes)
+        r = per.setdefault(o.user.name, {"waiter": o.user.name, "count": 0,
+                                         "amount_cents": 0, "minutes": []})
+        r["count"] += 1
+        r["amount_cents"] += amount
+        if minutes is not None:
+            r["minutes"].append(minutes)
+        recent.append({
+            "waiter": o.user.name, "table": o.table.name,
+            "area": o.table.area_name, "amount_cents": amount,
+            "created_at": o.created_at.isoformat(),
+            "cancelled_at": o.cancelled_at.isoformat() if o.cancelled_at else None,
+            "minutes": round(minutes, 1) if minutes is not None else None,
+        })
+    recent.sort(key=lambda x: x["created_at"], reverse=True)
+
+    by_waiter = sorted(
+        ({"waiter": r["waiter"], "count": r["count"],
+          "amount_cents": r["amount_cents"],
+          "avg_minutes": round(sum(r["minutes"]) / len(r["minutes"]), 1)
+                         if r["minutes"] else None}
+         for r in per.values()),
+        key=lambda x: -x["amount_cents"])
+
+    total_orders = len(cancelled) + len(kept)
+    return {
+        "days": days,
+        "count": len(cancelled),
+        "total_cents": total,
+        "avg_minutes": round(sum(gaps) / len(gaps), 1) if gaps else None,
+        "max_minutes": round(max(gaps), 1) if gaps else None,
+        "rate_pct": round(100 * len(cancelled) / total_orders, 1)
+                    if total_orders else 0,
+        "by_waiter": by_waiter,
+        "recent": recent[:10],
+    }

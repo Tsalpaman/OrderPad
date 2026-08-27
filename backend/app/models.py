@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
 
-ORDER_STATUSES = ("open", "paid")  # "new"/"ready"/"served" = legacy values
+ORDER_STATUSES = ("open", "paid", "cancelled")  # "new"/"ready"/"served" legacy
 
 # Option groups attached to individual products - the admin ticks, per
 # product, which groups apply. Simple and uniform: no category inheritance.
@@ -119,6 +119,10 @@ class Order(Base):
     # Local venue time (not UTC), so "today" in the Z report matches the
     # calendar day the staff actually lives in.
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    # Cancellations are recorded, never deleted: an erased row cannot be
+    # audited, and the owner needs to see what was voided and how late.
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True)
     table: Mapped[Table] = relationship()
     user: Mapped[User] = relationship()
     items: Mapped[list["OrderItem"]] = relationship(
@@ -133,6 +137,9 @@ class OrderItem(Base):
     qty: Mapped[int] = mapped_column(Integer, default=1)
     note: Mapped[str] = mapped_column(String(120), default="")
     price_cents: Mapped[int] = mapped_column(Integer)  # snapshot
+    # Split bills: each line is paid on its own, so one person can settle
+    # their drink while the table stays open.
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     order: Mapped[Order] = relationship(back_populates="items")
     product: Mapped[Product] = relationship()
     options: Mapped[list["OrderItemOption"]] = relationship(

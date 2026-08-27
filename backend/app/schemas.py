@@ -156,10 +156,13 @@ class OptionSnapOut(BaseModel):
 
 
 class OrderItemOut(BaseModel):
+    id: int
     name: str
     qty: int
     note: str
     price_cents: int
+    line_total_cents: int
+    paid: bool = False
     options: list[OptionSnapOut] = []
 
 
@@ -171,6 +174,7 @@ class OrderOut(BaseModel):
     created_at: datetime
     items: list[OrderItemOut]
     total_cents: int
+    due_cents: int
 
 
 class TableMoveIn(BaseModel):
@@ -185,6 +189,16 @@ class SettleOut(BaseModel):
     table_id: int
     orders_closed: int
     total_cents: int
+
+
+class PayItemsIn(BaseModel):
+    item_ids: list[int] = Field(min_length=1)
+
+
+class PayItemsOut(BaseModel):
+    paid_cents: int
+    items_paid: int
+    table_due_cents: int
 
 
 class TransferOut(BaseModel):

@@ -48,3 +48,17 @@ def run():
         with engine.begin() as conn:
             conn.execute(text(
                 "UPDATE users SET role='waiter' WHERE role='staff'"))
+
+    # v0.27: cancellation audit trail + per-item (split) payments.
+    if inspector.has_table("orders"):
+        columns = {c["name"] for c in inspector.get_columns("orders")}
+        if "cancelled_at" not in columns:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE orders ADD COLUMN cancelled_at DATETIME"))
+    if inspector.has_table("order_items"):
+        columns = {c["name"] for c in inspector.get_columns("order_items")}
+        if "paid_at" not in columns:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE order_items ADD COLUMN paid_at DATETIME"))

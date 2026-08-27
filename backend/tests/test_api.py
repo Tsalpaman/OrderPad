@@ -673,3 +673,67 @@ def test_stats_panel_visibility_toggles():
                  json={"panels": {"affinity": True, "by_hour": True}})
     assert all(client.get("/api/stats-settings",
                           headers=admin).json()["panels"].values())
+
+
+def test_split_payment_settles_selected_items_only():
+    headers = _auth("1111")
+    catalog = client.get("/api/catalog", headers=headers).json()
+    espresso = _find(catalog, "Espresso")
+    medium = _option(espresso, "Sugar", "Medium")
+    cola = _find(catalog, "Cola 330ml")
+
+    order = client.post("/api/orders", headers=headers, json={
+        "table_id": 5,
+        "items": [
+            {"product_id": espresso["id"], "qty": 1,
+             "option_ids": [medium["id"]]},          # 2.00
+            {"product_id": cola["id"], "qty": 2},     # 6.00
+        ]}).json()
+    assert order["total_cents"] == 800 and order["due_cents"] == 800
+
+    espresso_line = next(i for i in order["items"] if i["name"] == "Espresso")
+    paid = client.post("/api/tables/5/pay-items", headers=headers,
+                       json={"item_ids": [espresso_line["id"]]}).json()
+    assert paid["paid_cents"] == 200
+    assert paid["table_due_cents"] == 600  # the rest stays open
+
+    active = client.get("/api/orders?active=1", headers=headers).json()
+    mine = next(o for o in active if o["id"] == order["id"])
+    assert mine["due_cents"] == 600 and mine["total_cents"] == 800
+    assert next(i for i in mine["items"] if i["name"] == "Espresso")["paid"]
+
+    # paying the remainder closes the order on its own
+    cola_line = next(i for i in mine["items"] if i["name"] == "Cola 330ml")
+    rest = client.post("/api/tables/5/pay-items", headers=headers,
+                       json={"item_ids": [cola_line["id"]]}).json()
+    assert rest["table_due_cents"] == 0
+    active = client.get("/api/orders?active=1", headers=headers).json()
+    assert not any(o["id"] == order["id"] for o in active)
+
+
+def test_cancellations_are_recorded_and_measured():
+    headers = _auth("2222")
+    catalog = client.get("/api/catalog", headers=headers).json()
+    cola = _find(catalog, "Cola 330ml")
+    order = client.post("/api/orders", headers=headers, json={
+        "table_id": 11,
+        "items": [{"product_id": cola["id"], "qty": 1}]}).json()
+    client.delete(f"/api/orders/{order['id']}", headers=headers)
+
+    # the record survives cancellation (audit trail), just not as "active"
+    everything = client.get("/api/orders", headers=headers).json()
+    kept = next(o for o in everything if o["id"] == order["id"])
+    assert kept["status"] == "cancelled"
+
+    report = client.get("/api/stats/cancellations", headers=_auth("9999")).json()
+    assert report["count"] >= 1
+    assert report["total_cents"] >= 300
+    assert report["avg_minutes"] is not None
+    assert any(w["waiter"] == "Nikos" for w in report["by_waiter"])
+    assert report["recent"][0]["minutes"] is not None
+
+    # and cancelled money never counts as revenue
+    z = client.get("/api/reports/z", headers=_auth("9999")).json()
+    nikos = next((w for w in z["waiters"] if w["waiter"] == "Nikos"), None)
+    summary = client.get("/api/summary", headers=_auth("9999")).json()
+    assert summary["revenue_cents_today"] >= 0

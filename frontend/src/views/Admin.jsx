@@ -275,6 +275,7 @@ export default function Admin() {
               ['revenue_by_day', 'Revenue trend', 'Daily revenue, last 14 days'],
               ['by_hour', 'Busiest hours', 'Orders per hour of the day'],
               ['staff', 'Staff performance', 'Per-waiter sales metrics'],
+              ['cancellations', 'Cancellations', 'Voided orders, value and delay'],
               ['pareto', 'Pareto 80/20', 'Which products drive the revenue'],
               ['affinity', 'Sold together', 'Products bought in the same order'],
             ].map(([key, label, note]) => (

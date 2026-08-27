@@ -5,8 +5,8 @@ from sqlalchemy import func, select
 
 from ..deps import get_current_user, get_db, require_admin
 from ..models import Order, OrderItem, OrderItemOption, Product, Table, User
-from ..schemas import (OrderIn, OrderOut, SettleOut, SummaryOut, TableMoveIn,
-                       TransferOut, ZOut)
+from ..schemas import (OrderIn, OrderOut, PayItemsIn, PayItemsOut, SettleOut,
+                       SummaryOut, TableMoveIn, TransferOut, ZOut)
 from ..ws import manager
 
 router = APIRouter(tags=["orders"])
@@ -14,18 +14,30 @@ router = APIRouter(tags=["orders"])
 # One open tab per table: orders stay individual rows (so the Z report keeps
 # per-waiter accuracy) but are grouped per table in the UI and closed
 # together by /tables/{id}/settle. "served" is a legacy closed status.
-CLOSED_STATUSES = ("paid", "served")
+CLOSED_STATUSES = ("paid", "served", "cancelled")
+
+
+def _item_total(item: OrderItem) -> int:
+    return (item.price_cents
+            + sum(o.price_delta_cents for o in item.options)) * item.qty
 
 
 def _order_total(order: Order) -> int:
-    return sum(
-        (i.price_cents + sum(o.price_delta_cents for o in i.options)) * i.qty
-        for i in order.items)
+    return sum(_item_total(i) for i in order.items)
+
+
+def _order_due(order: Order) -> int:
+    """What is still owed on this order (unpaid lines only)."""
+    if order.status in ("paid", "served", "cancelled"):
+        return 0
+    return sum(_item_total(i) for i in order.items if i.paid_at is None)
 
 
 def _order_out(order: Order) -> dict:
-    items = [{"name": i.product.name, "qty": i.qty, "note": i.note,
-              "price_cents": i.price_cents,
+    items = [{"id": i.id, "name": i.product.name, "qty": i.qty,
+              "note": i.note, "price_cents": i.price_cents,
+              "line_total_cents": _item_total(i),
+              "paid": i.paid_at is not None,
               "options": [{"name": o.name,
                            "price_delta_cents": o.price_delta_cents}
                           for o in i.options]}
@@ -38,7 +50,8 @@ def _order_out(order: Order) -> dict:
             "status": order.status,
             "created_at": order.created_at,
             "items": items,
-            "total_cents": _order_total(order)}
+            "total_cents": _order_total(order),
+            "due_cents": _order_due(order)}
 
 
 def _build_item(item_in, db) -> OrderItem:
@@ -116,7 +129,8 @@ async def cancel_order(order_id: int, db=Depends(get_db),
     if order.status in CLOSED_STATUSES:
         raise HTTPException(422, "Order is already closed - cannot cancel")
     table_id = order.table_id
-    db.delete(order)
+    order.status = "cancelled"
+    order.cancelled_at = datetime.now()
     db.commit()
     await manager.broadcast({"type": "order.deleted",
                              "order_id": order_id, "table_id": table_id})
@@ -129,15 +143,52 @@ async def cancel_table(table_id: int, db=Depends(get_db),
     if not db.get(Table, table_id):
         raise HTTPException(404, "Table not found")
     orders = _open_orders(db, table_id)
-    total = sum(_order_total(o) for o in orders)
+    total = sum(_order_due(o) for o in orders)
+    now = datetime.now()
     for order in orders:
-        db.delete(order)
+        order.status = "cancelled"
+        order.cancelled_at = now
     db.commit()
     if orders:
         await manager.broadcast({"type": "table.cancelled",
                                  "table_id": table_id})
     return {"table_id": table_id, "orders_closed": len(orders),
             "total_cents": total}
+
+
+@router.post("/tables/{table_id}/pay-items", response_model=PayItemsOut)
+async def pay_items(table_id: int, body: PayItemsIn, db=Depends(get_db),
+                    _=Depends(get_current_user)):
+    """Split the bill: settle individual lines so one guest can pay their
+    own drink while the table's tab stays open for the rest."""
+    if not db.get(Table, table_id):
+        raise HTTPException(404, "Table not found")
+    open_orders = _open_orders(db, table_id)
+    lines = {i.id: (i, o) for o in open_orders for i in o.items}
+
+    chosen = []
+    for item_id in set(body.item_ids):
+        if item_id not in lines:
+            raise HTTPException(404, f"Item {item_id} is not on this open tab")
+        item, order = lines[item_id]
+        if item.paid_at is None:
+            chosen.append((item, order))
+
+    now = datetime.now()
+    paid_cents = 0
+    for item, _order in chosen:
+        item.paid_at = now
+        paid_cents += _item_total(item)
+    # an order whose lines are all settled closes on its own
+    for order in open_orders:
+        if all(i.paid_at is not None for i in order.items):
+            order.status = "paid"
+    db.commit()
+
+    remaining = sum(_order_due(o) for o in _open_orders(db, table_id))
+    await manager.broadcast({"type": "table.updated", "table_id": table_id})
+    return {"paid_cents": paid_cents, "items_paid": len(chosen),
+            "table_due_cents": remaining}
 
 
 @router.post("/tables/{table_id}/settle", response_model=SettleOut)
@@ -148,8 +199,12 @@ async def settle_table(table_id: int, db=Depends(get_db),
     if not db.get(Table, table_id):
         raise HTTPException(404, "Table not found")
     orders = _open_orders(db, table_id)
-    total = sum(_order_total(o) for o in orders)
+    total = sum(_order_due(o) for o in orders)
+    now = datetime.now()
     for order in orders:
+        for item in order.items:
+            if item.paid_at is None:
+                item.paid_at = now
         order.status = "paid"
     db.commit()
     if orders:
@@ -179,9 +234,12 @@ async def transfer_table(table_id: int, body: TableMoveIn,
             "orders_moved": len(orders)}
 
 
-def _today_orders(db):
+def _today_orders(db, include_cancelled: bool = False):
     start = datetime.combine(date.today(), time.min)
-    return db.scalars(select(Order).where(Order.created_at >= start)).all()
+    query = select(Order).where(Order.created_at >= start)
+    if not include_cancelled:
+        query = query.where(Order.status != "cancelled")
+    return db.scalars(query).all()
 
 
 @router.get("/summary", response_model=SummaryOut)
@@ -191,7 +249,7 @@ def summary(db=Depends(get_db), _=Depends(require_admin)):
     top = db.execute(
         select(Product.name, func.sum(OrderItem.qty).label("qty"))
         .join(OrderItem.product).join(OrderItem.order)
-        .where(Order.created_at >= start)
+        .where(Order.created_at >= start, Order.status != "cancelled")
         .group_by(Product.name).order_by(func.sum(OrderItem.qty).desc())
         .limit(5)).all()
     return {"orders_today": len(orders),
